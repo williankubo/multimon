@@ -11,8 +11,8 @@ import asyncio
 
 output_stream = sys.stdout
 
-#https://github.com/williankubo/multitcpmon/blob/main/multitcpmon.py
-#https://raw.githubusercontent.com/williankubo/multitcpmon/main/multitcpmon.py
+#https://github.com/williankubo/multimon/blob/main/multimon.py
+#https://raw.githubusercontent.com/williankubo/multimon/main/multimon.py
 
 
 #Initialize the parser
