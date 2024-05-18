@@ -18,7 +18,7 @@ output_stream = sys.stdout
 #Initialize the parser
 parser = argparse.ArgumentParser(
     description='Multi Monitor - by Kubo (This is a Multi Monitor connect status.)')
-parser.add_argument('File', help='file in csv format with - e.g. host/ip,port,description - for ping use port value 0')
+parser.add_argument('File', help='file format - e.g. host/ip,port,description - for ping use port value 0')
 parser.add_argument('-tt', help='title')
 parser.add_argument('-rf', help='refresh time (default 5s)')
 parser.add_argument('-to', help='timeout time (default 1s)')
