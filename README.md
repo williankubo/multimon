@@ -5,6 +5,9 @@ Project to TCP Syn or Ping multiple IPs simultaneously
 ## Requirements:
 
 - Python 3.6
+- Asyncio
+
+maybe need to install: pip install asyncio
  
 ## Usage:
 
