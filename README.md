@@ -34,3 +34,10 @@ e.g.
 microsoft.com,443,Microsoft
 192.168.0.1,0,Local_Router
 ```
+
+## Download:
+
+```text
+curl -L  https://raw.githubusercontent.com/williankubo/multimon/refs/heads/main/multimon.py > multimon.py
+```
+
