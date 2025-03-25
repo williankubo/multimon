@@ -59,7 +59,7 @@ elif args.p != None:
 
 # Define global variables
 
-version = "v0.2"
+version = "v0.1"
 lock = threading.Lock()
 q = queue.Queue()
 wait_ping_return = 1
