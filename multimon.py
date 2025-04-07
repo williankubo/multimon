@@ -9,8 +9,6 @@ import os
 import asyncio
 
 
-debug_mode = False  # Mude para False para desativar o debug
-
 output_stream = sys.stdout
 
 #https://github.com/williankubo/multimon/blob/main/multimon.py
@@ -61,7 +59,7 @@ elif args.p != None:
 
 # Define global variables
 
-version = "v0.2"
+version = "v0.1"
 lock = threading.Lock()
 q = queue.Queue()
 wait_ping_return = 1
@@ -124,16 +122,6 @@ class bcolors:
 # function to clear screen
 clearConsole = lambda: os.system('cls' if os.name in ('nt', 'dos') else 'clear')
 
-# function debug_print
-
-def debug_print(message):
-    if debug_mode:
-        # Remove as tags de cores para o output real
-        clean_message = message.replace("[bcolors.OKCYAN]", "").replace("[bcolors.ENDC]", "").replace("[bcolors.FAIL]", "").replace("[bcolors.WARNING]", "").replace("[bcolors.OKGREEN]", "")
-        print(clean_message)
-
-
-
 
 ## start functions TCP_CONNECT
 
@@ -145,42 +133,35 @@ def debug_print(message):
 #Returns: 'Open', 'Closed' or 'Timeout' depending on the result of connecting to the specified ip and port
 def connect(ip, port):
     status = ""
-    response_time = 0
-    start_time = time.time()
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(1)
         connection = s.connect((ip, port))
         status = "Open"
-        response_time = (time.time() - start_time) * 1000  # em milissegundos
         s.close()
 
     except socket.timeout:
         status = "Timeout"
-        response_time = 0
     
     except socket.gaierror as e:
-        status = "errorDNSresol"
-        response_time = 0
+            status = "errorDNSresol"
   
     except socket.error as e:
         if e.errno == errno.ECONNREFUSED:
             status = "Closed"
-            response_time = (time.time() - start_time) * 1000  # em milissegundos
         else:
             raise e
 
-    return status, response_time
+    return status
 
 
 #worker() - A function for worker threads to scan IPs and ports
 def worker():
     while not q.empty():
         (ip,port,index) = q.get()
-        status, response_time = connect(ip,port)
+        status = connect(ip,port)
         lock.acquire()
         new_data[index][3] = status
-        new_data[index].append(f"{response_time:.2f}ms") if len(new_data[index]) < 5 else new_data[index].__setitem__(4, f"{response_time:.2f}ms")
         lock.release()
         q.task_done()
 
@@ -210,62 +191,26 @@ def init_polling():
 ## start functions PING 
 
 # async function, receive index of list
-async def ping(index):
+async def ping(index):                              #add the "async" keyword to make a function asynchronous
     global new_data
     global wait_ping_return
-    host = new_data[index][0]
-    response_time = "Timeout"
-    
-    cmd = f'ping -c 1 -W {wait_ping_return} {host}'
-    
-    proc = await asyncio.create_subprocess_shell(
-        cmd,
-        stderr=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE
-    )
-    
-    stdout, stderr = await proc.communicate()
-    output = stdout.decode()
-    
-    if proc.returncode == 0:
-        new_data[index][3] = "Up"
-        try:
-            # Busca flexível por padrões de tempo
-            time_patterns = [
-                "round-trip min/avg/max/stddev",  # macOS
-                "rtt min/avg/max/mdev"            # Linux
-            ]
-            
-            stats_line = None
-            for pattern in time_patterns:
-                if pattern in output:
-                    stats_line = [line for line in output.split('\n') 
-                                if pattern in line][0]
-                    break
-            
-            if stats_line:
-                # Extrai o tempo médio (avg)
-                time_values = stats_line.split('=')[1].strip().split('/')
-                avg_time = time_values[1]  # Segundo valor é a média
-                response_time = f"{float(avg_time):.2f}ms"
-            else:
-                # Fallback para extração alternativa
-                time_line = [line for line in output.split('\n') 
-                            if "time=" in line][0]
-                time_str = time_line.split("time=")[1].split()[0]
-                response_time = f"{float(time_str):.2f}ms"
-                
-        except Exception as e:
-            response_time = "0.00ms"
+    #host = str(host)                               #turn ip address object to string
+    host = new_data[index][0]                               #turn ip address object to string
+    proc = await asyncio.create_subprocess_shell(  #asyncio can smoothly call subprocess for you
+            f'ping {host} -c 1 -W {wait_ping_return}',                   #ping command
+            stderr=asyncio.subprocess.DEVNULL,     #silence ping errors
+            stdout=asyncio.subprocess.DEVNULL      #silence ping output
+            )
+    stdout,stderr = await proc.communicate()       #get info from ping process
+    if  proc.returncode == 0:                      #if process code was 0                      
+        #print(f'{host} is alive!')                 #say it's alive!
+        new_data[index][3] = "Up"                      #set status 1 (UP)
+        #print(new_data[index])
+
     else:
-        new_data[index][3] = "Timeout"
-        response_time = "Timeout"
-    
-    # Atualiza o tempo de resposta
-    if len(new_data[index]) < 5:
-        new_data[index].append(response_time)
-    else:
-        new_data[index][4] = response_time
+        #print(f'{bcolors.FAIL}{host} is dead!{bcolors.ENDC}')
+        new_data[index][3] = "Timeout"             #set status 0 (Timeout)
+        #print(new_data[index])
 
 
 loop = asyncio.get_event_loop()                    #create an async loop
@@ -278,8 +223,10 @@ tasks = []                                         #list to hold ping tasks
 
 # update/print data on screen
 def update_screen():
+
     global polling
-    clearConsole()
+
+    clearConsole() #clear screen
     print(f'[ {bcolors.OKCYAN}{title}{bcolors.ENDC} - Multi Monitor {version} ]')
     print()
     for index2 in range(len(new_data)):
@@ -291,14 +238,15 @@ def update_screen():
         port = new_data[index2][1]
         description = new_data[index2][2]
         status = new_data[index2][3]
-        response_time = new_data[index2][4] if len(new_data[index2]) > 4 else "N/A"
-        
         if ((status == "Open") or (status == "Closed") or (status == "Up")):
-            print(f'{host}:{port} {ip} {bcolors.UNDERLINE}{description}{bcolors.ENDC} is {bcolors.OKGREEN}{status}{bcolors.ENDC} ({response_time})')
+            #print connection status
+            print(f'{host}:{port} {ip} {bcolors.UNDERLINE}{description}{bcolors.ENDC} is {bcolors.OKGREEN}{status}{bcolors.ENDC}')
         elif (status == "Timeout"):
-            print(f'{host}:{port} {ip} {bcolors.UNDERLINE}{description}{bcolors.ENDC} is {bcolors.FAIL}{status}{bcolors.ENDC} ({response_time})')
+            #print connection status
+            print(f'{host}:{port} {ip} {bcolors.UNDERLINE}{description}{bcolors.ENDC} is {bcolors.FAIL}{status}{bcolors.ENDC}')
         else:
-            print(f'{host}:{port} {ip} {bcolors.UNDERLINE}{description}{bcolors.ENDC} is {bcolors.OKWARNING}{status}{bcolors.ENDC} ({response_time})')
+            #print connection status
+            print(f'{host}:{port} {ip} {bcolors.UNDERLINE}{description}{bcolors.ENDC} is {bcolors.OKWARNING}{status}{bcolors.ENDC}')
     print()
 
 
